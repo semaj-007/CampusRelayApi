@@ -126,12 +126,13 @@ public class DeliveriesController : ControllerBase
         return Ok(new SyncOfflineResponseDto(syncedCount, failed));
     }
 
-    
+
     [AllowAnonymous]
     [HttpGet("feed")]
     public async Task<IActionResult> GetFeed()
     {
-        var items = await _db.DeliveryRequests.Select(d => new {
+        var items = await _db.DeliveryRequests.Select(d => new
+        {
             deliveryId = d.Id.ToString(),
             itemDescription = d.ItemDescription,
             pickupBuilding = d.PickupBuilding,
@@ -144,7 +145,7 @@ public class DeliveriesController : ControllerBase
         return Ok(items);
     }
 
-private static double ApproxKgFor(WeightCategory category) => category switch
+    private static double ApproxKgFor(WeightCategory category) => category switch
     {
         WeightCategory.Small => 0.5,
         WeightCategory.Medium => 3.0,

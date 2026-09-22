@@ -1,9 +1,6 @@
 using CampusRelay.Api.Models.Entities;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
-using Google.Apis.Auth;
-using Microsoft.Extensions.Configuration;
-using System.Threading.Tasks;
 
 namespace CampusRelay.Api.Services;
 
@@ -37,7 +34,7 @@ public class FirebaseAuthService : IFirebaseAuthService
 
         var firebaseSection = _configuration.GetSection("Firebase");
         var credential = GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
-        
+
         FirebaseApp.Create(new AppOptions()
         {
             Credential = credential,
@@ -48,18 +45,18 @@ public class FirebaseAuthService : IFirebaseAuthService
     public async Task<User> ValidateFirebaseTokenAndGetUser(string idToken, string provider)
     {
         var firebaseAuth = FirebaseAuth.DefaultInstance;
-        
+
         try
         {
             var decodedToken = await firebaseAuth.VerifyIdTokenAsync(idToken);
-            
+
             var user = new User
             {
                 SsoSub = decodedToken.Uid,
-                Email = decodedToken.Claims.GetValueOrDefault("email", ""),
-                FullName = decodedToken.Claims.GetValueOrDefault("name", "Firebase User")
+                Email = (string)decodedToken.Claims.GetValueOrDefault("email", ""),
+                FullName = (string)decodedToken.Claims.GetValueOrDefault("name", "Firebase User")
             };
-            
+
             return user;
         }
         catch (FirebaseAuthException ex)
