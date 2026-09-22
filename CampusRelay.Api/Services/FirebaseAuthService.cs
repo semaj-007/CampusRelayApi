@@ -5,6 +5,7 @@ using Google.Apis.Auth;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using System;
 using System.IdentityModel.Tokens;
 using System.Threading.Tasks;
 
@@ -71,7 +72,7 @@ public class FirebaseAuthService : IFirebaseAuthService
         }
         catch (FirebaseAuthException ex)
         {
-            throw new SecurityTokenInvalidException("Invalid Firebase token", ex);
+            throw new Microsoft.IdentityModel.Tokens.SecurityTokenInvalidException("Invalid Firebase token", ex);
         }
     }
 }
