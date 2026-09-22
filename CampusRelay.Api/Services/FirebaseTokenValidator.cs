@@ -42,7 +42,7 @@ public class FirebaseTokenValidator : IFirebaseTokenValidator
         {
             try
             {
-                var credential = GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
+                var credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
                 
                 FirebaseApp.Create(new FirebaseAdmin.AppOptions()
                 {
@@ -64,15 +64,11 @@ public class FirebaseTokenValidator : IFirebaseTokenValidator
 
     public async Task<FirebaseToken> ValidateTokenAsync(string token)
     {
-        // If Firebase is not initialized, return a mock token for development
+        // If Firebase is not initialized, we cannot validate tokens
+        // Return null or throw - the controller will handle this gracefully
         if (FirebaseAuth.DefaultInstance == null)
         {
-            return new FirebaseToken(
-                "dev-uid",
-                new FirebaseAdmin.Auth.FirebaseTokenOptions
-                {
-                    Uid = "dev-firebase-user"
-                });
+            throw new InvalidOperationException("Firebase not initialized. Configure Firebase Service Account JSON in appsettings.");
         }
         
         var firebaseAuth = FirebaseAuth.DefaultInstance;
