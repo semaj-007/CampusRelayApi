@@ -2,17 +2,15 @@ using CampusRelay.Api.Data;
 using CampusRelay.Api.Models.Dtos;
 using CampusRelay.Api.Models.Entities;
 using CampusRelay.Api.Services;
+using FirebaseAdmin.Auth;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace CampusRelay.Api.Controllers;
 
 /// <summary>
-/// PROTOTYPE-ONLY. REQ-AUTH-1 calls for real OIDC against the university's SSO
-/// (Microsoft Azure AD / Google) - that needs a real App Registration and isn't
-/// something that can be stood up without those credentials. This controller exists
-/// purely so the Android app and Swagger UI have a way to get a bearer token and a
-/// User row while that integration is being built. Delete it once REQ-AUTH-1 is real.
+/// Authentication controller that handles Firebase-based SSO login.
+/// REQ-AUTH-1: Real SSO via Firebase Authentication.
 /// </summary>
 [ApiController]
 [Route("api/v1/auth")]
@@ -20,38 +18,47 @@ public class AuthController : ControllerBase
 {
     private readonly CampusRelayDbContext _db;
     private readonly IJwtTokenService _tokenService;
+    private readonly IFirebaseTokenValidator _firebaseTokenValidator;
 
-    public AuthController(CampusRelayDbContext db, IJwtTokenService tokenService)
+    public AuthController(
+        CampusRelayDbContext db,
+        IJwtTokenService tokenService,
+        IFirebaseTokenValidator firebaseTokenValidator)
     {
         _db = db;
         _tokenService = tokenService;
+        _firebaseTokenValidator = firebaseTokenValidator;
     }
-       
+
+    /// <summary>
+    /// POST /api/v1/auth/sso
+    /// Validates Firebase ID token and returns a JWT for API access.
+    /// </summary>
     [HttpPost("sso")]
-        public async Task<ActionResult<AuthResponseDto>> Sso([FromBody] SsoLoginRequestDto dto)
+    public async Task<ActionResult<AuthResponseDto>> Sso([FromBody] SsoLoginRequestDto dto)
+    {
+        try
         {
-            var email = $"user_{Guid.NewGuid():N}@campusrelay.local";
+            // Validate Firebase ID token
+            var firebaseToken = await _firebaseTokenValidator.ValidateTokenAsync(dto.IdToken);
 
-            var user = new User
+            // Create or find user based on Firebase UID
+            var user = await _db.Users
+                .FirstOrDefaultAsync(u => u.SsoSub == firebaseToken.Uid);
+
+            if (user == null)
             {
-                SsoSub = dto.IdToken ?? Guid.NewGuid().ToString(),
-                Email = email,
-                FullName = "Campus User"
-            };
-
-            var existing = await _db.Users
-                .FirstOrDefaultAsync(u => u.SsoSub == user.SsoSub);
-
-            if (existing == null)
-            {
+                user = new User
+                {
+                    SsoSub = firebaseToken.Uid,
+                    Email = firebaseToken.Claims.GetValueOrDefault("email", $"{firebaseToken.Uid}@firebase.local"),
+                    FullName = firebaseToken.Claims.GetValueOrDefault("name", "Firebase User")
+                };
                 _db.Users.Add(user);
                 await _db.SaveChangesAsync();
             }
-            else
-            {
-                user = existing;
-            }
 
+            // Generate JWT token for API access
             var token = _tokenService.GenerateToken(user);
 
             return Ok(new AuthResponseDto(
@@ -60,11 +67,20 @@ public class AuthController : ControllerBase
                 user.FullName,
                 user.Email));
         }
+        catch (FirebaseAuthException ex)
+        {
+            return BadRequest(new { message = "Invalid Firebase token", error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = "Authentication failed", error = ex.Message });
+        }
+    }
 
-    
-
-    /// <summary>POST /api/v1/auth/dev-login - upserts a User row (mimicking REQ-AUTH-3's
-    /// first-login profile creation) and returns a bearer token for it.</summary>
+    /// <summary>
+    /// POST /api/v1/auth/dev-login - For development/testing only.
+    /// Creates or finds a user and returns a JWT token.
+    /// </summary>
     [HttpPost("dev-login")]
     public async Task<ActionResult<DevLoginResponseDto>> DevLogin([FromBody] DevLoginRequestDto dto)
     {
