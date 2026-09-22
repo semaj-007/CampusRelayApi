@@ -5,8 +5,8 @@ namespace CampusRelay.Api.Data;
 
 /// <summary>
 /// EF Core Code-First context for the whole schema in Part 1's "Data Models and
-/// Schema Definitions" section. SQLite in Development, Azure SQL Database in
-/// Production - see Program.cs for the provider switch.
+/// Schema Definitions" section. SQLite in Development, PostgreSQL in Production on Render,
+/// Azure SQL Database for other deployments - see Program.cs for the provider switch.
 /// </summary>
 public class CampusRelayDbContext : DbContext
 {
@@ -68,8 +68,6 @@ public class CampusRelayDbContext : DbContext
 
         modelBuilder.Entity<Transaction>(entity =>
         {
-            // Restrict (not Cascade) on both sides - deleting a user shouldn't silently
-            // wipe out transaction history where they were the *other* party.
             entity.HasOne(t => t.Requester)
                 .WithMany()
                 .HasForeignKey(t => t.RequesterId)

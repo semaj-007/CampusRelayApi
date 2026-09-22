@@ -1,0 +1,38 @@
+services:
+  # Web service for CampusRelay API
+  - type: web
+    name: campusrelay-api
+    runtime: dotnet
+    # Build command for .NET 8
+    buildCommand: dotnet publish -c Release -o ./publish
+    # Start command
+    startCommand: dotnet CampusRelay.Api.dll
+    # Publish directory
+    publishDir: ./publish
+    # Environment variables for production
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT
+        value: false
+      # JWT Configuration
+      - key: Jwt__Issuer
+        value: campusrelay-api
+      - key: Jwt__Audience
+        value: campusrelay-app
+      - key: Jwt__Key
+        value: REPLACE_WITH_YOUR_32_CHARACTER_SECRET_KEY
+      # Firebase Configuration
+      - key: Firebase__ProjectId
+        value: REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID
+      - key: FIREBASE_SERVICE_ACCOUNT_B64
+        value: REPLACE_WITH_BASE64_ENCODED_FIREBASE_SERVICE_ACCOUNT_JSON
+
+databases:
+  # PostgreSQL database for CampusRelay
+  - type: pgsql
+    name: campusrelay-db
+    plan: free
+    region: us-east-1
+    databaseName: campusrelay
+    user: campusrelay_user

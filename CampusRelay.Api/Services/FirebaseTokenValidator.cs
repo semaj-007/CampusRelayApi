@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
@@ -11,6 +12,7 @@ namespace CampusRelay.Api.Services;
 /// <summary>
 /// Validates Firebase ID tokens using Firebase Admin SDK.
 /// This replaces Azure AD token validation with Firebase Authentication.
+/// Uses environment variables for Render deployment.
 /// </summary>
 public interface IFirebaseTokenValidator
 {
@@ -23,6 +25,7 @@ public interface IFirebaseTokenValidator
 public class FirebaseTokenValidator : IFirebaseTokenValidator
 {
     private readonly IConfiguration _configuration;
+    private static bool _isInitialized = false;
 
     public FirebaseTokenValidator(IConfiguration configuration)
     {
@@ -32,21 +35,41 @@ public class FirebaseTokenValidator : IFirebaseTokenValidator
 
     private void InitializeFirebaseApp()
     {
-        if (FirebaseApp.DefaultInstance != null)
+        // Only initialize once
+        if (_isInitialized)
             return;
 
-        var firebaseSection = _configuration.GetSection("Firebase");
-        
-        if (!string.IsNullOrEmpty(firebaseSection["ServiceAccountFilePath"]))
+        try
         {
-            try
+            var firebaseSection = _configuration.GetSection("Firebase");
+            var projectId = firebaseSection["ProjectId"] ?? Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
+            
+            // Try to get Firebase credentials from environment variable (Render)
+            var base64Json = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_B64");
+            
+            if (!string.IsNullOrEmpty(base64Json))
             {
-                var serviceAccountPath = firebaseSection["ServiceAccountFilePath"];
+                var json = Encoding.UTF8.GetString(Convert.FromBase64String(base64Json));
+                var credential = GoogleCredential.FromJson(json);
                 
-                // Check if the path is relative and prepend the base directory
+                FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+                {
+                    Credential = credential,
+                    ProjectId = projectId
+                });
+                _isInitialized = true;
+                Console.WriteLine("Firebase initialized from environment variable");
+                return;
+            }
+            
+            // Fallback to external file for local development
+            var serviceAccountPath = firebaseSection["ServiceAccountFilePath"];
+            
+            if (!string.IsNullOrEmpty(serviceAccountPath))
+            {
                 if (!Path.IsPathRooted(serviceAccountPath))
                 {
-                    serviceAccountPath = Path.Combine(AppContext.BaseDirectory, serviceAccountPath);
+                    serviceAccountPath = Path.Combine(FirebaseAppContext.BaseDirectory, serviceAccountPath);
                 }
                 
                 if (File.Exists(serviceAccountPath))
@@ -56,38 +79,38 @@ public class FirebaseTokenValidator : IFirebaseTokenValidator
                     FirebaseApp.Create(new FirebaseAdmin.AppOptions()
                     {
                         Credential = credential,
-                        ProjectId = firebaseSection["ProjectId"]
+                        ProjectId = projectId
                     });
+                    _isInitialized = true;
+                    Console.WriteLine("Firebase initialized from file: " + serviceAccountPath);
+                    return;
                 }
                 else
                 {
                     Console.WriteLine("Firebase service account file not found: " + serviceAccountPath);
                 }
             }
-            catch (Exception ex)
+            
+            if (!string.IsNullOrEmpty(projectId) && projectId != "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID")
             {
-                // Log error but don't crash - Firebase will work without initialization for dev-login
-                Console.WriteLine("Firebase initialization skipped (dev mode): " + ex.Message);
+                Console.WriteLine("Firebase not configured - using dev mode only");
             }
         }
-        else
+        catch (Exception ex)
         {
-            Console.WriteLine("Firebase not configured - using dev mode only");
+            Console.WriteLine("Firebase initialization skipped (dev mode): " + ex.Message);
         }
     }
 
     public async Task<FirebaseToken> ValidateTokenAsync(string token)
     {
         // If Firebase is not initialized, we cannot validate tokens
-        // Return null or throw - the controller will handle this gracefully
         if (FirebaseAuth.DefaultInstance == null)
         {
-            throw new InvalidOperationException("Firebase not initialized. Configure Firebase Service Account file in appsettings.");
+            throw new InvalidOperationException("Firebase not initialized. Configure Firebase Service Account in environment variables.");
         }
         
         var firebaseAuth = FirebaseAuth.DefaultInstance;
         return await firebaseAuth.VerifyIdTokenAsync(token);
     }
 }
-
-
