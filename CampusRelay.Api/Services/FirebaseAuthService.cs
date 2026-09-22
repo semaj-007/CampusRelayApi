@@ -48,7 +48,7 @@ public class FirebaseAuthService : IFirebaseAuthService
                 // Check if the path is relative and prepend the base directory
                 if (!Path.IsPathRooted(serviceAccountPath))
                 {
-                    serviceAccountPath = Path.Combine(AppContext.BaseDirectory, serviceAccountPath);
+                    serviceAccountPath = Path.Combine(FirebaseAppContext.BaseDirectory, serviceAccountPath);
                 }
                 
                 if (File.Exists(serviceAccountPath))

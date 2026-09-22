@@ -13,7 +13,7 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // Set the base directory for Firebase service account file lookup
-AppContext.BaseDirectory = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+FirebaseAppContext.BaseDirectory = FirebaseAppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
 
 // REQ-API-2: every response is JSON; enums serialize as their name (e.g. "Active")
 // rather than a raw integer, so payloads stay readable in Swagger/Postman/logcat.

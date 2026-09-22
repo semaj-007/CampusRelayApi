@@ -90,8 +90,4 @@ public class FirebaseTokenValidator : IFirebaseTokenValidator
     }
 }
 
-// Helper class to get the application base directory
-public static class AppContext
-{
-    public static string BaseDirectory { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
-}
+
