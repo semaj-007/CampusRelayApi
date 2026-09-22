@@ -71,8 +71,8 @@ public class FirebaseAuthService : IFirebaseAuthService
         }
         catch (FirebaseAuthException ex)
         {
-            // Use FirebaseAuthException directly instead of SecurityTokenInvalidException
-            throw new FirebaseAuthException("Invalid Firebase token", ex);
+            // Re-throw the original exception with additional context
+            throw new Exception("Invalid Firebase token: " + ex.Message, ex);
         }
     }
 }
