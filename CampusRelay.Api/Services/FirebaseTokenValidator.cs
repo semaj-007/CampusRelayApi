@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
 using Google.Apis.Auth;
+using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Configuration;
 
 namespace CampusRelay.Api.Services;
@@ -31,17 +32,21 @@ public class FirebaseTokenValidator : IFirebaseTokenValidator
 
     private void InitializeFirebaseApp()
     {
-        if (FirebaseAuth.DefaultInstance != null)
+        if (FirebaseApp.DefaultInstance != null)
             return;
 
         var firebaseSection = _configuration.GetSection("Firebase");
-        var credential = Google.Apis.Auth.GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
         
-        FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+        if (!string.IsNullOrEmpty(firebaseSection["ServiceAccountJson"]))
         {
-            Credential = credential,
-            ProjectId = firebaseSection["ProjectId"]
-        });
+            var credential = GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
+            
+            FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+            {
+                Credential = credential,
+                ProjectId = firebaseSection["ProjectId"]
+            });
+        }
     }
 
     public async Task<FirebaseToken> ValidateTokenAsync(string token)
