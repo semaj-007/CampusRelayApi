@@ -51,8 +51,8 @@ public class AuthController : ControllerBase
                 user = new User
                 {
                     SsoSub = firebaseToken.Uid,
-                    Email = firebaseToken.Claims.GetValueOrDefault("email", $"{firebaseToken.Uid}@firebase.local"),
-                    FullName = firebaseToken.Claims.GetValueOrDefault("name", "Firebase User")
+                    Email = firebaseToken.Claims?.GetValueOrDefault("email")?.ToString() ?? $"{firebaseToken.Uid}@firebase.local",
+                    FullName = firebaseToken.Claims?.GetValueOrDefault("name")?.ToString() ?? "Firebase User"
                 };
                 _db.Users.Add(user);
                 await _db.SaveChangesAsync();
