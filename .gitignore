@@ -1,0 +1,14 @@
+bin/
+obj/
+*.user
+.vs/
+.vscode/
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets - never commit real connection strings / JWT keys.
+appsettings.Production.json
+*.pfx
+
+.DS_Store
