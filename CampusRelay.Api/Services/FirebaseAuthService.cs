@@ -1,11 +1,10 @@
+using System;
+using System.IO;
 using CampusRelay.Api.Models.Entities;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
-using Google.Apis.Auth;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.IdentityModel.Tokens;
 using System.Threading.Tasks;
 
 namespace CampusRelay.Api.Services;
@@ -40,18 +39,32 @@ public class FirebaseAuthService : IFirebaseAuthService
 
         var firebaseSection = _configuration.GetSection("Firebase");
         
-        if (!string.IsNullOrEmpty(firebaseSection["ServiceAccountJson"]) && 
-            firebaseSection["ServiceAccountJson"] != "REPLACE_WITH_ACTUAL_FIREBASE_SERVICE_ACCOUNT_JSON")
+        if (!string.IsNullOrEmpty(firebaseSection["ServiceAccountFilePath"]))
         {
             try
             {
-                var credential = GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
+                var serviceAccountPath = firebaseSection["ServiceAccountFilePath"];
                 
-                FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+                // Check if the path is relative and prepend the base directory
+                if (!Path.IsPathRooted(serviceAccountPath))
                 {
-                    Credential = credential,
-                    ProjectId = firebaseSection["ProjectId"]
-                });
+                    serviceAccountPath = Path.Combine(AppContext.BaseDirectory, serviceAccountPath);
+                }
+                
+                if (File.Exists(serviceAccountPath))
+                {
+                    var credential = GoogleCredential.FromFile(serviceAccountPath);
+                    
+                    FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+                    {
+                        Credential = credential,
+                        ProjectId = firebaseSection["ProjectId"]
+                    });
+                }
+                else
+                {
+                    Console.WriteLine("Firebase service account file not found: " + serviceAccountPath);
+                }
             }
             catch (Exception ex)
             {
@@ -67,17 +80,6 @@ public class FirebaseAuthService : IFirebaseAuthService
 
     public async Task<User> ValidateFirebaseTokenAndGetUser(string idToken, string provider)
     {
-        // If Firebase is not initialized, return a demo user for development
-        if (FirebaseAuth.DefaultInstance == null)
-        {
-            return new User
-            {
-                SsoSub = "dev-firebase-user",
-                Email = "dev@firebase.local",
-                FullName = "Dev Firebase User"
-            };
-        }
-        
         var firebaseAuth = FirebaseAuth.DefaultInstance;
         
         try

@@ -1,8 +1,8 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using FirebaseAdmin;
 using FirebaseAdmin.Auth;
-using Google.Apis.Auth;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Configuration;
 
@@ -37,18 +37,32 @@ public class FirebaseTokenValidator : IFirebaseTokenValidator
 
         var firebaseSection = _configuration.GetSection("Firebase");
         
-        if (!string.IsNullOrEmpty(firebaseSection["ServiceAccountJson"]) && 
-            firebaseSection["ServiceAccountJson"] != "REPLACE_WITH_ACTUAL_FIREBASE_SERVICE_ACCOUNT_JSON")
+        if (!string.IsNullOrEmpty(firebaseSection["ServiceAccountFilePath"]))
         {
             try
             {
-                var credential = Google.Apis.Auth.OAuth2.GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
+                var serviceAccountPath = firebaseSection["ServiceAccountFilePath"];
                 
-                FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+                // Check if the path is relative and prepend the base directory
+                if (!Path.IsPathRooted(serviceAccountPath))
                 {
-                    Credential = credential,
-                    ProjectId = firebaseSection["ProjectId"]
-                });
+                    serviceAccountPath = Path.Combine(AppContext.BaseDirectory, serviceAccountPath);
+                }
+                
+                if (File.Exists(serviceAccountPath))
+                {
+                    var credential = GoogleCredential.FromFile(serviceAccountPath);
+                    
+                    FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+                    {
+                        Credential = credential,
+                        ProjectId = firebaseSection["ProjectId"]
+                    });
+                }
+                else
+                {
+                    Console.WriteLine("Firebase service account file not found: " + serviceAccountPath);
+                }
             }
             catch (Exception ex)
             {
@@ -68,10 +82,16 @@ public class FirebaseTokenValidator : IFirebaseTokenValidator
         // Return null or throw - the controller will handle this gracefully
         if (FirebaseAuth.DefaultInstance == null)
         {
-            throw new InvalidOperationException("Firebase not initialized. Configure Firebase Service Account JSON in appsettings.");
+            throw new InvalidOperationException("Firebase not initialized. Configure Firebase Service Account file in appsettings.");
         }
         
         var firebaseAuth = FirebaseAuth.DefaultInstance;
         return await firebaseAuth.VerifyIdTokenAsync(token);
     }
+}
+
+// Helper class to get the application base directory
+public static class AppContext
+{
+    public static string BaseDirectory { get; set; } = AppDomain.CurrentDomain.BaseDirectory;
 }

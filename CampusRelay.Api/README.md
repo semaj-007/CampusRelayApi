@@ -12,13 +12,10 @@ ASP.NET Core 8 Web API backend for CampusRelay (PROG7314 POE), built from Part 1
    dotnet run --project CampusRelay.Api
    ```
 3. Open the Swagger UI it launches (`https://localhost:5001/swagger`).
-4. For Firebase authentication, configure your Firebase project settings in `appsettings.Development.json`:
-   - Set `Firebase:ProjectId` to your Firebase project ID
-   - Set `Firebase:ServiceAccountJson` to your Firebase service account JSON key
-5. Call `POST /api/v1/auth/dev-login` with `{ "email": "you@example.com", "fullName": "Your Name" }`
+4. Call `POST /api/v1/auth/dev-login` with `{ "email": "you@example.com", "fullName": "Your Name" }`
    to get a bearer token (see "Auth" below) and a real `User` row to attach delivery
    requests to.
-6. Click **Authorize** in Swagger, paste `Bearer <token>`, and try
+5. Click **Authorize** in Swagger, paste `Bearer <token>`, and try
    `POST /api/v1/deliveries`.
 
 No database setup needed for local dev - it uses a SQLite file (`campusrelay-dev.db`,
@@ -42,9 +39,43 @@ The backend validates Firebase ID tokens and issues its own JWT tokens for API a
 
 **For production deployment:**
 1. Set up a Firebase project
-2. Download the service account JSON key
-3. Configure `Firebase:ProjectId` and `Firebase:ServiceAccountJson` in `appsettings.json`
-4. Ensure the Android app uses the same Firebase project
+2. Download the service account JSON file
+3. Place it in the project root as `firebase-service-account.json`
+4. Set **Copy to Output Directory** = **Copy if newer** in file properties
+5. Ensure the Android app uses the same Firebase project
+
+## Firebase Setup
+
+### Step 1: Create Firebase Project
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a new project or use an existing one
+3. Note your **Project ID** (found in project settings)
+
+### Step 2: Get Service Account JSON
+1. Go to **Project Settings** > **Service Accounts**
+2. Click **"Generate new private key"**
+3. Save the downloaded JSON file as `firebase-service-account.json` in your project root
+4. In Visual Studio, set the file property **Copy to Output Directory** = **Copy if newer**
+
+### Step 3: Configure appsettings.Development.json
+```json
+{
+  "Firebase": {
+    "ProjectId": "your-firebase-project-id",
+    "ServiceAccountFilePath": "firebase-service-account.json"
+  }
+}
+```
+
+### Step 4: Enable Providers
+- Go to **Authentication** > **Sign-in method**
+- Enable **Google** and **Microsoft** providers
+- For Google: Add your Android package name and SHA-1 fingerprint
+
+### Step 5: Android Configuration
+1. Download `google-services.json` from Firebase Console
+2. Place it in `app/` folder of your Android project
+3. Replace `YOUR_WEB_CLIENT_ID` in `AuthRepository.kt` with your Firebase Web Client ID
 
 ## Database
 
@@ -103,37 +134,10 @@ One thing to double check on the Android side: `DeliveryRepositoryImpl.createDel
 currently reads `body.deliveryId` from this API's response but not `body.status` -
 worth wiring that up now that `status` is a real, meaningful value.
 
-## Firebase Setup
+## Firebase Service Account File
 
-To enable Firebase Authentication:
+The Firebase service account JSON file (`firebase-service-account.json`) should be placed in the project root and configured with:
+- **Copy to Output Directory**: Copy if newer
+- **Do NOT commit this file to source control** (add to .gitignore)
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Create a new project or use an existing one
-3. Go to Project Settings > Service Accounts
-4. Click "Generate new private key" to download the service account JSON file
-5. Copy the contents of the JSON file into `appsettings.Development.json` > `Firebase:ServiceAccountJson`
-6. Set `Firebase:ProjectId` to your Firebase project ID
-7. In the Android app, ensure `google-services.json` matches the same Firebase project
-8. Enable Google and Microsoft sign-in providers in Firebase Authentication
-
-## Migration from Azure AD to Firebase
-
-The following changes were made to replace Azure AD with Firebase Authentication:
-
-1. **Backend**:
-   - Added Firebase Admin SDK dependencies
-   - Created `FirebaseTokenValidator` service to validate Firebase ID tokens
-   - Updated `AuthController.Sso` to validate Firebase tokens instead of Azure AD tokens
-   - Added Firebase configuration to `appsettings.json`
-   - Updated JWT token generation to work with Firebase-authenticated users
-
-2. **Android App**:
-   - Added Firebase Authentication dependencies
-   - Updated `AuthRepository` to use Firebase Auth for Google and Microsoft sign-in
-   - Updated `Constants.kt` to point to local backend URL for development
-   - Added Firebase initialization in `CampusRelayApp.kt`
-
-3. **Removed**:
-   - All Azure AD specific code and references
-   - Azure AD App Registration requirements
-   - MSAL library dependencies
+This approach avoids JSON escaping issues and allows for easier credential management.

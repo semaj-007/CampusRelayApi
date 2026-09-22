@@ -1,17 +1,19 @@
+using System;
+using System.IO;
 using System.Text;
 using System.Text.Json.Serialization;
 using CampusRelay.Api.Data;
 using CampusRelay.Api.Services;
 using FirebaseAdmin;
-using FirebaseAdmin.Auth;
-using Google.Apis.Auth;
-using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Set the base directory for Firebase service account file lookup
+AppContext.BaseDirectory = AppContext.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
 
 // REQ-API-2: every response is JSON; enums serialize as their name (e.g. "Active")
 // rather than a raw integer, so payloads stay readable in Swagger/Postman/logcat.
@@ -65,7 +67,7 @@ builder.Services.AddDbContext<CampusRelayDbContext>(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
-// Firebase Authentication setup - gracefully handles missing config for development
+// Firebase Authentication setup - reads from external file
 builder.Services.AddSingleton<IFirebaseTokenValidator, FirebaseTokenValidator>();
 
 // JWT Bearer Authentication for API endpoints
