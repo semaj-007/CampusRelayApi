@@ -40,20 +40,44 @@ public class FirebaseAuthService : IFirebaseAuthService
 
         var firebaseSection = _configuration.GetSection("Firebase");
         
-        if (!string.IsNullOrEmpty(firebaseSection["ServiceAccountJson"]))
+        if (!string.IsNullOrEmpty(firebaseSection["ServiceAccountJson"]) && 
+            firebaseSection["ServiceAccountJson"] != "REPLACE_WITH_ACTUAL_FIREBASE_SERVICE_ACCOUNT_JSON")
         {
-            var credential = GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
-            
-            FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+            try
             {
-                Credential = credential,
-                ProjectId = firebaseSection["ProjectId"]
-            });
+                var credential = GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
+                
+                FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+                {
+                    Credential = credential,
+                    ProjectId = firebaseSection["ProjectId"]
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't crash - Firebase will work without initialization for dev-login
+                Console.WriteLine("Firebase initialization skipped (dev mode): " + ex.Message);
+            }
+        }
+        else
+        {
+            Console.WriteLine("Firebase not configured - using dev mode only");
         }
     }
 
     public async Task<User> ValidateFirebaseTokenAndGetUser(string idToken, string provider)
     {
+        // If Firebase is not initialized, return a demo user for development
+        if (FirebaseAuth.DefaultInstance == null)
+        {
+            return new User
+            {
+                SsoSub = "dev-firebase-user",
+                Email = "dev@firebase.local",
+                FullName = "Dev Firebase User"
+            };
+        }
+        
         var firebaseAuth = FirebaseAuth.DefaultInstance;
         
         try

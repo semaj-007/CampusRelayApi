@@ -1,13 +1,15 @@
+using System.Text;
+using System.Text.Json.Serialization;
 using CampusRelay.Api.Data;
 using CampusRelay.Api.Services;
 using FirebaseAdmin;
+using FirebaseAdmin.Auth;
+using Google.Apis.Auth;
 using Google.Apis.Auth.OAuth2;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +30,7 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\" " +
-                      "- get one from POST /api/v1/auth/sso with Firebase ID token.",
+                      "- get one from POST /api/v1/auth/dev-login for development.",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -63,30 +65,10 @@ builder.Services.AddDbContext<CampusRelayDbContext>(options =>
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
-// Firebase Authentication setup
+// Firebase Authentication setup - gracefully handles missing config for development
 builder.Services.AddSingleton<IFirebaseTokenValidator, FirebaseTokenValidator>();
 
-// Initialize Firebase App
-var firebaseSection = builder.Configuration.GetSection("Firebase");
-if (firebaseSection.Exists() && !string.IsNullOrEmpty(firebaseSection["ServiceAccountJson"]))
-{
-    try
-    {
-        var credential = GoogleCredential.FromJson(firebaseSection["ServiceAccountJson"]);
-        FirebaseApp.Create(new FirebaseAdmin.AppOptions()
-        {
-            Credential = credential,
-            ProjectId = firebaseSection["ProjectId"]
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Firebase initialization failed: " + ex.Message);
-    }
-}
-
 // JWT Bearer Authentication for API endpoints
-// Now validates JWT tokens issued by this API (after Firebase validation)
 var jwtSection = builder.Configuration.GetSection("Jwt");
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
