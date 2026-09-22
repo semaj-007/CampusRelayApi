@@ -10,6 +10,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
+// CampusRelay API - PROG7314 POE Project
+// Developed by: James (semaj-007)
+// Institution: VC Connect / University
+// Date: 2024
+// Purpose: Backend API for CampusRelay mobile application
+// Features: Firebase Authentication, PostgreSQL/Render deployment, JWT token management
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Set the base directory for Firebase service account file lookup
